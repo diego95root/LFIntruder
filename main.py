@@ -1,5 +1,5 @@
 
-import os, argparse, sys
+import os, argparse, sys, random
 
 def generatePaths(Max = None):
     paths = []
@@ -41,10 +41,12 @@ def parse():
     group.add_argument("--generate-files", default=False, action="store_true" , help="Generate file paths. If not specified jump to LFI")
     group.add_argument("--generate-custom", default=False, action="store_true" , help="Generate paths with custom file. If not specified jump to LFI")
 
+    parser.add_argument("-w", "--wordlist", default="", type=str, help="Wordlist to be used to test LFI")
     parser.add_argument("-o", "--out-file", default="", type=str, help="Write generated paths to file")
     parser.add_argument("-n", "--number", default=500, type=int, help="Number of maximum paths to be generated")
     parser.add_argument("-s", "--string", default="", type=str, help="Filename to be included in the paths")
-    
+    parser.add_argument("-u", "--url", default="", type=str, help="URL to be tested")
+
     args = parser.parse_args()
     return [parser, args]
 
@@ -64,6 +66,21 @@ def Banner():
                 """
     print banner
 
+def LFI(url, tests):
+    # given url and tests  determine how the error page is going to be, then start fuzzing
+    return 1
+
+def getRubbish(attempts = 10):
+
+    alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+    files = []
+    ext = [".php", ".html", ".txt"]
+
+    for i in xrange(attempts):
+        files.append(''.join(random.choice(alphabet) for i in range(10)))
+
+    return [x+y for x in files for y in ext]
+
 if __name__ == "__main__":
 
     parser, args = parse()
@@ -73,8 +90,6 @@ if __name__ == "__main__":
         parser.print_usage()
         print
         sys.exit(0)
-
-    # figure out what to do when no option
 
     if args.__dict__["generate_dirs"] or args.__dict__["generate_files"] or args.__dict__["generate_custom"]:
         
@@ -92,6 +107,15 @@ if __name__ == "__main__":
                 sys.exit(1)
             paths = generatePaths(maxPaths)
             paths = combineWithFile(file_str, paths)
+
+    else:
+
+        maxPaths = args.__dict__["number"]
+        url = args.__dict__["url"]
+        generateFiles(maxPaths)
+        
+        tests = getRubbish()
+        LFI(url, tests)
 
     if args.__dict__["out_file"] != "": 
         savePaths(args.__dict__["out_file"], paths)
