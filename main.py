@@ -1,5 +1,5 @@
-
-import os, argparse, sys, random
+from difflib import SequenceMatcher
+import os, argparse, sys, random, requests
 
 def generatePaths(Max = None):
     paths = []
@@ -66,9 +66,27 @@ def Banner():
                 """
     print banner
 
-def LFI(url, tests):
-    # given url and tests  determine how the error page is going to be, then start fuzzing
-    return 1
+def LFI_error_tester(url, tests, tolerance):
+    # ASSUME THAT URL IS IN THE FORM OF: http://host:port/
+    
+    error = []
+    validity = 0
+    for i in xrange(len(tests)):
+        content = requests.get(url+tests[i]).content
+        error.append(content)
+
+    best = []
+
+    for i in error:
+        validity = 0
+        for j in error:
+            if SequenceMatcher(None, i, j).ratio() > tolerance:
+                validity += 1
+        best.append((i, validity))
+
+    max_score = max([n[1] for n in best])
+    error = [i for i in best if i[1] == max_score][0][0]
+    return error
 
 def getRubbish(attempts = 10):
 
@@ -115,7 +133,8 @@ if __name__ == "__main__":
         generateFiles(maxPaths)
         
         tests = getRubbish()
-        LFI(url, tests)
+        tolerance = 0.75
+        LFI_error_tester(url, tests, tolerance)
 
     if args.__dict__["out_file"] != "": 
         savePaths(args.__dict__["out_file"], paths)
