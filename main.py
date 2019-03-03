@@ -1,6 +1,9 @@
 from difflib import SequenceMatcher
 import os, argparse, sys, random, requests
 
+def Print(something):
+    print ("[*] {}".format(something))
+
 def generatePaths(Max = None):
     paths = []
     root = os.path.abspath(os.sep)
@@ -109,33 +112,60 @@ if __name__ == "__main__":
         print
         sys.exit(0)
 
+    else:
+        Banner()
+
+    paths = []
+    maxPaths = args.__dict__["number"]
+    url = args.__dict__["url"]
+    file_str = args.__dict__["string"]
+
     if args.__dict__["generate_dirs"] or args.__dict__["generate_files"] or args.__dict__["generate_custom"]:
-        
-        maxPaths = args.__dict__["number"]
-        file_str = args.__dict__["string"]
 
         if args.__dict__["generate_dirs"]:
+            
+            Print("Generating directory paths from filesystem...")
             paths = generatePaths(maxPaths)
+            Print("Number of directory paths generated: {}.".format(maxPaths))
+
         elif args.__dict__["generate_files"]:
+            
+            Print("Generating file paths from filesystem...")
             paths = generateFiles(maxPaths)
+            Print("Number of file paths generated: {}.".format(maxPaths))
+
         else:
             if file_str == "":
-                print "   --generate_files flag needs a filename to craft the paths. Include it with -s STRING or --string STRING\n"
-                parser.print_help()
+                Print("--generate_custom flag needs a filename to craft the paths. Include it with -s STRING or --string STRING\n")
                 sys.exit(1)
+
+            Print("Generating custom file paths from filesystem with: {}...".format(file_str))
             paths = generatePaths(maxPaths)
             paths = combineWithFile(file_str, paths)
+            Print("Number of file paths generated: {}.".format(maxPaths))
 
     else:
 
-        maxPaths = args.__dict__["number"]
-        url = args.__dict__["url"]
+        Print("Generating file paths from filesystem...")
+
         generateFiles(maxPaths)
+
+        Print("Number of file paths generated: {}.".format(maxPaths))
         
+    if url:
+
+        Print("Getting error message from: {}.".format(url))
+
         tests = getRubbish()
         tolerance = 0.75
-        LFI_error_tester(url, tests, tolerance)
+        error = LFI_error_tester(url, tests, tolerance)
+
+        Print("Error message detected, lenght = {}.".format(len(error)))
 
     if args.__dict__["out_file"] != "": 
-        savePaths(args.__dict__["out_file"], paths)
+
+        out = args.__dict__["out_file"]
+
+        Print("Saving generated paths to {}...".format(out))
+        savePaths(out, paths)
 
