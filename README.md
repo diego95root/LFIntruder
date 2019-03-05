@@ -15,6 +15,7 @@
   <br>
   <img src="https://img.shields.io/github/license/diego95root/LFIntruder.svg"/>
   <img src="https://img.shields.io/badge/Python-2.7-yellow.svg"/>
+  <img src="https://img.shields.io/github/tag/diego95root/LFIntruder.svg">
   <br>
   <br>
   <img src="https://github.com/diego95root/LFIntruder/blob/master/images/initial.png" alt="Logo" width="70%">
