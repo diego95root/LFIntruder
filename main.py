@@ -127,12 +127,17 @@ def LFI_exploiter(url, error, paths, validity, levels=1):
     Print("Finished, {} matches found.".format(matches))
 
 def urlparse(url, value):
+    
     base = url.split("?")[0]
     params = url.split("?")[-1].split("&")
+    
     for i in params:
         if i.split("=")[0] == value:
             params.append(params.pop(params.index(i)))
-            
+
+    if params[-1].split("=")[0] != value:
+        return -1
+
     return base + "?" + "=".join("&".join(params).split("=")[:-1])+"="
 
 def getRubbish(attempts = 10):
@@ -175,12 +180,20 @@ if __name__ == "__main__":
     out = args.path_file
     params = args.param
     levels = args.levels or 1
+    wordlist = args.wordlist
 
     # figure out a way of showing all the configurations at the beginning
 
     show_options(vars(args))
 
-    if args.generate_dirs or args.generate_dirs or args.generate_custom:
+    if wordlist != None:
+
+        Print("Parsing paths from file...")
+        for i in open(wordlist, "r").read().split("\n"):
+            if i != "":
+                paths.append(i)
+
+    elif args.generate_dirs or args.generate_dirs or args.generate_custom:
 
         if args.generate_dirs:
             
@@ -196,7 +209,7 @@ if __name__ == "__main__":
 
         else:
 
-            if file_str == "":
+            if file_str == None:
                 Print("--generate_custom flag needs a filename to craft the paths. Include it with -s STRING or --string STRING")
                 sys.exit(1)
 
@@ -220,7 +233,13 @@ if __name__ == "__main__":
         if params:
             Print("Parameter to be tested: {}".format(params))
             url = urlparse(url, params) # rearranges url so that fuzzed parameter is last & empty
+            if url == -1:
+                Print("--param supplied hasn't been found on the URL.")
+                sys.exit(1)
 
+        else:
+            Print("--url needs a parameter to test. Include it with -p or --param")
+            sys.exit(1)
 
         #Print("Getting error message from: {}.".format(url))
         Print("Getting error message...")
