@@ -26,6 +26,7 @@
 
 - Autogeneration of filepaths but custom generation also possible
 - GET exploitation
+- POST exploitation (where payload is still in URL)
 - Incredibly fast
 - Multiple levels of depth scanning
 - Useful to generate wordlists of filepaths and directories
@@ -74,6 +75,5 @@ python main.py -u "http://localhost:80/LFI.php?file=aaa" -n 100 -p file -l 4
 
 ### TODO
 
-- Implement POST support
 - Implement multithreading
 - Improve way of checking for false positives, longer paths are dangerous
